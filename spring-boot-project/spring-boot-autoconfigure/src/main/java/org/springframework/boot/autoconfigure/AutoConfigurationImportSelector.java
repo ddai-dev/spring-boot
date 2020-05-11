@@ -93,6 +93,7 @@ public class AutoConfigurationImportSelector
 		AutoConfigurationMetadata autoConfigurationMetadata = AutoConfigurationMetadataLoader
 				.loadMetadata(this.beanClassLoader);
 		AnnotationAttributes attributes = getAttributes(annotationMetadata);
+		// 关键
 		List<String> configurations = getCandidateConfigurations(annotationMetadata,
 				attributes);
 		configurations = removeDuplicates(configurations);

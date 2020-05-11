@@ -174,6 +174,10 @@ public class ConfigFileApplicationListener
 		}
 	}
 
+	// 环境准备好之后, 触发 (spring-boot/META-INF/spring.factories + 自己 ) 排序, 调用
+	// org.springframework.boot.env.SpringApplicationJsonEnvironmentPostProcessor, 对 spring.application.json SPRING_APPLICATION_JSON json 的支持
+	// org.springframework.boot.cloud.CloudFoundryVcapEnvironmentPostProcessor, 不关心
+	// org.springframework.boot.context.config.ConfigFileApplicationListener
 	private void onApplicationEnvironmentPreparedEvent(
 			ApplicationEnvironmentPreparedEvent event) {
 		List<EnvironmentPostProcessor> postProcessors = loadPostProcessors();
@@ -209,6 +213,7 @@ public class ConfigFileApplicationListener
 	 */
 	protected void addPropertySources(ConfigurableEnvironment environment,
 			ResourceLoader resourceLoader) {
+		// 增加随机数 (random) 我们才能在配置文件中使用${random.int} 生成随机值
 		RandomValuePropertySource.addToEnvironment(environment);
 		new Loader(environment, resourceLoader).load();
 	}
@@ -325,13 +330,16 @@ public class ConfigFileApplicationListener
 			this.processedProfiles = new LinkedList<>();
 			this.activatedProfiles = false;
 			this.loaded = new LinkedHashMap<>();
+			// 调用initializeActiveProfiles.获得ActiveProfiles.将未激活的Profiles加入到profiles中.如果profiles为空的话,就将spring.profiles.default配置的profile添加到profiles中
 			initializeProfiles();
+			// 依次遍历profiles中的profile.依次在classpath:/,classpath:/config/,file:./,file:./config/中加载application的配置.调用ConfigFileApplicationListener$Loader#load进行加载
 			while (!this.profiles.isEmpty()) {
 				Profile profile = this.profiles.poll();
 				load(profile, this::getPositiveProfileFilter,
 						addToLoaded(MutablePropertySources::addLast, false));
 				this.processedProfiles.add(profile);
 			}
+			// 调用addConfigurationProperties,向environment中添加ConfigurationPropertySources.
 			load(null, this::getNegativeProfileFilter,
 					addToLoaded(MutablePropertySources::addFirst, true));
 			addLoadedPropertySources();
@@ -360,16 +368,22 @@ public class ConfigFileApplicationListener
 		}
 
 		private Set<Profile> initializeActiveProfiles() {
+			// 1. 如果environment不含有spring.profiles.active和spring.profiles.include的配置话,返回空集合
+			// 当前的environment拥有的source有
+			//        commandLineArgs、servletConfigInitParams、servletContextInitParams、systemProperties、systemEnvironment, RandomValuePropertySource 如果想
+			//        不返回空的话,就需要在以上的source中有配置.最简单的方式是通过命令行的方式传入 --spring.profiles.active=you profiles 即可
 			if (!this.environment.containsProperty(ACTIVE_PROFILES_PROPERTY)
 					&& !this.environment.containsProperty(INCLUDE_PROFILES_PROPERTY)) {
 				return Collections.emptySet();
 			}
 			// Any pre-existing active profiles set via property sources (e.g. System
 			// properties) take precedence over those added in config files.
+			// 2. 调用bindSpringProfiles,生成SpringProfiles
 			Binder binder = Binder.get(this.environment);
 			Set<Profile> activeProfiles = new LinkedHashSet<>();
 			activeProfiles.addAll(getProfiles(binder, ACTIVE_PROFILES_PROPERTY));
 			activeProfiles.addAll(getProfiles(binder, INCLUDE_PROFILES_PROPERTY));
+			// 3. 调用maybeActivateProfiles.将activatedProfiles设为true
 			maybeActivateProfiles(activeProfiles);
 			return activeProfiles;
 		}

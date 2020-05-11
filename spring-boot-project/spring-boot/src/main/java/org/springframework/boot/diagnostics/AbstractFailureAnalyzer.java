@@ -31,8 +31,12 @@ public abstract class AbstractFailureAnalyzer<T extends Throwable>
 
 	@Override
 	public FailureAnalysis analyze(Throwable failure) {
+		// getCauseType()  class BeanCurrentlyInCreationFailureAnalyzer extends AbstractFailureAnalyzer<BeanCurrentlyInCreationException>
+			 // 泛型就是他能够支持的类型 BeanCurrentlyInCreationException
+		// 1. 获得failure中的异常堆栈中是type类型的异常
 		T cause = findCause(failure, getCauseType());
 		if (cause != null) {
+			// 2. 如果不等于null,则进行分析
 			return analyze(failure, cause);
 		}
 		return null;
@@ -58,6 +62,7 @@ public abstract class AbstractFailureAnalyzer<T extends Throwable>
 				.forClass(AbstractFailureAnalyzer.class, getClass()).resolveGeneric();
 	}
 
+	// 查看 failure 是否被支持
 	@SuppressWarnings("unchecked")
 	protected final <E extends Throwable> E findCause(Throwable failure, Class<E> type) {
 		while (failure != null) {
